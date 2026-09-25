@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>三栖田えれ(β)</title>
+<style>
+:root{
+  --paper:#eae6da; --ink:#1a1a1a; --red:#8c1c13; --line:#b9b2a0; --faint:#6f6a5c;
+  --road:#d8d2c0; --block:#dedad0; --paper-dark:#141311; --ink-dark:#d9d3c2;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --paper:var(--paper-dark); --ink:var(--ink-dark); --line:#3a362c; --faint:#8c8570; --road:#241f18; --block:#1d1a15; }
+}
+:root[data-theme="dark"]{ --paper:var(--paper-dark); --ink:var(--ink-dark); --line:#3a362c; --faint:#8c8570; --road:#241f18; --block:#1d1a15; }
+*{box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho",serif;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);min-height:100%;}
+header.site{border-bottom:2px solid var(--ink);padding:16px 16px 12px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--paper);z-index:20;}
+header.site h1{margin:0;font-size:1.3rem;letter-spacing:.08em;}
+header.site .sub{font-size:.68rem;color:var(--faint);margin-top:3px;font-family:monospace;}
+main{max-width:680px;margin:0 auto;padding:14px 14px 60px;}
+.view{display:none;}
+.view.active{display:block;}
+h2.section{font-size:1rem;border-bottom:1px solid var(--line);padding-bottom:6px;margin:22px 0 12px;}
+
+/* map */
+.maphead{display:flex;justify-content:space-between;align-items:baseline;font-size:.78rem;font-family:monospace;color:var(--faint);margin-bottom:6px;}
+.mapview{position:relative;border:1px solid var(--ink);height:min(70vh,460px);overflow:hidden;background:var(--road);touch-action:none;}
+.mapstage{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:center center;cursor:grab;}
+.mapstage:active{cursor:grabbing;}
+.mapstage svg{width:100%;height:100%;display:block;}
+.pin{position:absolute;transform:translate(-50%,-100%);width:26px;height:26px;cursor:pointer;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4));}
+.pin svg{width:100%;height:100%;}
+.pin.dim{opacity:.25;}
+.pin.selected svg .pinbody{stroke:var(--ink);stroke-width:2;}
+.pin.new{animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:translate(-50%,-100%) scale(1);}50%{transform:translate(-50%,-100%) scale(1.18);}}
+.mapctrl{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:4px;z-index:2;}
+.mapctrl button{width:30px;height:30px;padding:0;font-size:1rem;line-height:1;background:var(--paper);border:1px solid var(--ink);color:var(--ink);}
+.compass{position:absolute;left:8px;top:8px;font-family:monospace;font-size:.75rem;border:1px solid var(--ink);background:var(--paper);width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.badge{position:absolute;left:8px;bottom:8px;font-family:monospace;font-size:.7rem;background:var(--paper);border:1px solid var(--ink);padding:2px 8px;}
+
+.filters{display:flex;gap:8px;margin:10px 0;font-size:.78rem;}
+.filters select{font-family:inherit;font-size:.78rem;padding:5px 6px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);}
+
+.modalbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;padding:16px;align-items:flex-end;justify-content:center;}
+.modalbg.open{display:flex;}
+.modal{background:var(--paper);border:1px solid var(--ink);max-width:480px;width:100%;padding:16px;margin-bottom:env(safe-area-inset-bottom,0px);}
+.modal .meta{font-family:monospace;font-size:.72rem;color:var(--faint);}
+.modal .word{color:var(--red);font-weight:bold;}
+.modal p{font-size:.88rem;line-height:1.7;}
+.modal button.close{float:right;}
+
+.card{border:1px solid var(--line);padding:10px 12px;margin-bottom:8px;background:var(--block);}
+#thread{margin-top:10px;}
+.msg{border-left:3px solid var(--line);padding:6px 10px;margin-bottom:8px;font-size:.88rem;}
+.msg.admin{border-left-color:var(--red);background:color-mix(in srgb, var(--red) 8%, transparent);}
+.msg .who{font-family:monospace;font-size:.7rem;color:var(--faint);}
+form.comment select,form.comment textarea{width:100%;font-family:inherit;font-size:.9rem;padding:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
+form.comment textarea{resize:vertical;min-height:60px;margin-top:6px;}
+button, input[type=text], input[type=password]{font-family:inherit;font-size:.9rem;padding:8px 12px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);}
+button{cursor:pointer;margin-top:6px;}
+button:hover{background:var(--ink);color:var(--paper);}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible{outline:2px solid var(--red);outline-offset:2px;}
+.photo{border:1px solid var(--faint);padding:10px;margin:10px 0;position:relative;font-size:.8rem;line-height:1.5;}
+.photo .corner{position:absolute;right:6px;bottom:4px;font-family:monospace;font-size:.6rem;color:var(--faint);opacity:.55;}
+nav.admin-link{margin-top:16px;font-size:.75rem;}
+nav.admin-link a{color:var(--faint);}
+.loginbox{border:1px solid var(--line);padding:16px;max-width:320px;margin:20px auto;}
+.loginbox label{display:block;font-size:.75rem;margin:8px 0 3px;font-family:monospace;}
+.loginbox input{width:100%;}
+.err{color:var(--red);font-size:.8rem;margin-top:8px;min-height:1em;}
+.memo{white-space:pre-wrap;font-size:.88rem;line-height:1.85;margin:10px 0 24px;}
+.hist-item{display:flex;justify-content:space-between;align-items:center;border-bottom:1px dashed var(--line);padding:6px 0;font-size:.82rem;font-family:monospace;}
+.hist-item button{margin:0;padding:2px 8px;font-size:.75rem;}
+.badend{text-align:center;padding:80px 16px;}
+.badend h2{font-size:1.1rem;color:var(--red);}
+a.cta{display:inline-block;margin-top:14px;border:1px solid var(--red);color:var(--red);padding:8px 16px;text-decoration:none;font-size:.85rem;}
+a.cta:hover{background:var(--red);color:var(--paper);}
+::selection{background:var(--red);color:var(--paper);}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <h1>三栖田えれ(β)</h1>
+  <div class="sub">三栖田町 エレベーター事故まとめ ― 個人調査サイト</div>
+</header>
+
+<main>
+
+<section id="view-map" class="view active">
+  <p style="font-size:.85rem;line-height:1.7">ここ数年、三栖田町ではエレベーター事故が異常な頻度で発生しています。地図のピンをタップすると詳細が確認できます。</p>
+
+  <div class="maphead"><span id="pinCount">事故記録 6件</span><span>三栖田町全域</span></div>
+  <div class="mapview" id="mapview">
+    <div class="mapstage" id="mapstage">
+      <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
+        <rect width="400" height="400" fill="var(--road)"/>
+        <g fill="var(--block)" stroke="var(--line)">
+          <rect x="20" y="20" width="150" height="150"/>
+          <rect x="230" y="20" width="150" height="120"/>
+          <rect x="20" y="230" width="120" height="150"/>
+          <rect x="200" y="190" width="180" height="190"/>
+        </g>
+        <g stroke="var(--faint)" stroke-width="1" opacity=".5">
+          <line x1="190" y1="0" x2="190" y2="400"/>
+          <line x1="0" y1="180" x2="400" y2="180"/>
+        </g>
+        <g font-family="monospace" font-size="10" fill="var(--faint)">
+          <text x="30" y="35">三栖田町1丁目</text>
+          <text x="240" y="35">三栖田町2丁目</text>
+          <text x="30" y="245">三栖田町4丁目</text>
+          <text x="210" y="205">三栖田町3丁目</text>
+        </g>
+      </svg>
+      <div id="pins"></div>
+    </div>
+    <div class="compass">N</div>
+    <div class="mapctrl">
+      <button id="zoomIn" aria-label="拡大">＋</button>
+      <button id="zoomOut" aria-label="縮小">－</button>
+      <button id="zoomReset" aria-label="中央に戻す">⌖</button>
+    </div>
+    <div class="badge" id="mapBadge">500m</div>
+  </div>
+
+  <div class="filters">
+    <label style="font-family:monospace;color:var(--faint);align-self:center;">発生年</label>
+    <select id="eraFilter">
+      <option value="all">すべての期間</option>
+      <option value="recent">直近1〜2年</option>
+      <option value="old">3年以上前</option>
+    </select>
+  </div>
+
+  <h2 class="section">口コミ・目撃情報</h2>
+  <div id="thread"></div>
+  <form class="comment" id="commentForm">
+    <select id="commentAddr">
+      <option value="">住所を選択してください</option>
+      <option>三栖田町1丁目</option>
+      <option>三栖田町2丁目</option>
+      <option>三栖田町3丁目</option>
+      <option>三栖田町4丁目</option>
+    </select>
+    <textarea id="commentInput" placeholder="情報提供・目撃談をお寄せください"></textarea>
+    <button type="submit">投稿する</button>
+  </form>
+
+  <nav class="admin-link"><a href="#login" onclick="go('login')">サイト管理について →</a></nav>
+</section>
+
+<section id="view-login" class="view">
+  <h2 class="section">管理者ログイン</h2>
+  <div class="loginbox">
+    <form id="loginForm">
+      <label for="lid">ID</label>
+      <input type="text" id="lid" autocomplete="off">
+      <label for="lpw">PASSWORD</label>
+      <input type="password" id="lpw" autocomplete="off">
+      <button type="submit">ログイン</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+</section>
+
+<section id="view-memo" class="view">
+  <h2 class="section">非公開メモ</h2>
+  <div class="memo">恋人を探している。
+三栖田町のエレベーター事故で、五年前から行方不明になったままだ。
+
+行方不明者が出る事故は、そもそも利用者が助からないはずの事案がほとんどだ。
+軽傷で済んだ事故では、行方不明者は一人も出ていない。全員救助されている。
+
+――つまり「遺体」として発見されるはずだった人だけが、消えている。
+
+この現象は、一件の事故を境に始まった。
+五年前、三十代の男性エレベーター技師が、整備中の事故に巻き込まれて行方不明になった。
+それ以降、町内で同じような事例が相次ぐようになった。
+
+都市伝説を信じて、老朽化したエレベーターに自ら乗り込む若者も出てきている。
+
+噂が本当なら――こっちで亡骸として見つかるより、あっちで理想の世界を生きているほうが、
+あの人は幸せなのかもしれない、と考えたくなる時がある。
+
+だが、現実から逃げてはいけない。
+諦めずに記録し続ける。手がかりは必ずある。</div>
+
+  <h2 class="section">ログイン履歴</h2>
+  <div id="histList"></div>
+  <button id="logoutBtn" style="margin-top:16px;">ログアウトする</button>
+</section>
+
+<section id="view-badend" class="view badend">
+  <h2>不審なログイン履歴を検知しました</h2>
+  <p style="font-size:.85rem;line-height:1.8;max-width:360px;margin:14px auto;">セキュリティ上の理由により、当サイトの公開を停止します。<br>ご利用ありがとうございました。</p>
+  <p style="font-family:monospace;font-size:.7rem;color:var(--faint);margin-top:40px;">――「三栖田えれ(β)」は閉鎖されました――</p>
+</section>
+
+<section id="view-final" class="view">
+  <h2 class="section">事故マップが更新されました</h2>
+  <div class="card" style="border-color:var(--red);">
+    <div class="meta" style="font-family:monospace;font-size:.72rem;color:var(--faint);">たった今 / 三栖田町1丁目</div>
+    <p style="font-size:.9rem;"><span style="color:var(--red);font-weight:bold;">行方不明者5名。エレベーターおとこ 目撃情報あり。</span></p>
+  </div>
+  <p style="font-size:.85rem;line-height:1.8">記録者は今、ログアウトした直後だった。町のどこかで、また扉が開く。</p>
+  <p style="font-size:.85rem;line-height:1.8">この先の物語は――</p>
+  <a class="cta" href="https://store.steampowered.com/search/?term=MR.ELEVATOR" target="_blank" rel="noopener">『ミスター・エレベーター』で</a>
+</section>
+
+<div class="modalbg" id="modalbg">
+  <div class="modal">
+    <button class="close" id="modalClose">閉じる ×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const state = JSON.parse(localStorage.getItem('misudaEre') || '{}');
+state.thread = state.thread || [];
+state.history = state.history || ['9/12 02:14 ログイン','9/18 23:47 ログイン','今回のログイン ― たった今'];
+state.loggedIn = !!state.loggedIn;
+function save(){ try{ localStorage.setItem('misudaEre', JSON.stringify(state)); }catch(e){} }
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function go(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+/* --- accidents / pins --- */
+const accidents = [
+  {id:1, x:22, y:18, era:'old', addr:'三栖田町1丁目', meta:'5年前 / 集合住宅 / 30代男性(保守点検業者)', word:'エレベーター技師', desc:'定期点検中のエレベーターに巻き込まれ、エレベーター技師が行方不明。町内でこの種の事案が確認された最初の記録。'},
+  {id:2, x:62, y:15, era:'old', addr:'三栖田町2丁目', meta:'3年前 / 雑居ビル / 40代女性', word:'エレベーターおとこ', desc:'閉じ込め事故発生後、救出時には車内に利用者の姿なし。行方不明。事例発生後、エレベーターおとこ目撃情報あり。'},
+  {id:3, x:70, y:55, era:'recent', addr:'三栖田町3丁目', meta:'2年前 / 商業施設 / 20代男性', word:null, desc:'扉開閉の異常により搬送。落下寸前で救助され軽傷。行方不明者なし。'},
+  {id:4, x:58, y:30, era:'recent', addr:'三栖田町2丁目', meta:'1年前 / 高層マンション / 10代女性', word:'デスゲーム', desc:'「デスゲームに参加させられる」と友人に話した翌日、エレベーター内で消息を絶つ。行方不明。'},
+  {id:5, x:15, y:65, era:'recent', addr:'三栖田町4丁目', meta:'半年前 / 古アパート / 60代男性', word:'タイムリープ', desc:'老朽化した設備での事故。「タイムリープできるらしい」と自ら進んで乗り込んだとの目撃談。行方不明。'},
+  {id:6, x:30, y:12, era:'recent', addr:'三栖田町1丁目', meta:'2ヶ月前 / 集合住宅 / 30代女性', word:null, desc:'「理想の世界に行ける」との書き込み直後に発生。救出隊到着時、かご内は無人。行方不明。'}
+];
+const pinSvg = (color)=>`<svg viewBox="0 0 24 24"><path class="pinbody" d="M12 0C6 0 2 4.3 2 9.5 2 16 12 24 12 24s10-8 10-14.5C22 4.3 18 0 12 0z" fill="${color}" stroke="none"/><circle cx="12" cy="9.5" r="4" fill="var(--paper)"/></svg>`;
+
+function renderPins(){
+  const wrap = document.getElementById('pins');
+  const filter = document.getElementById('eraFilter').value;
+  let count = 0;
+  wrap.innerHTML = accidents.map(a=>{
+    const dim = (filter!=='all' && a.era!==filter) ? ' dim' : '';
+    if(!dim) count++;
+    return `<div class="pin${dim}" style="left:${a.x}%;top:${a.y}%;" data-id="${a.id}">${pinSvg('var(--red)')}</div>`;
+  }).join('');
+  document.getElementById('pinCount').textContent = `事故記録 ${count}件`;
+  wrap.querySelectorAll('.pin').forEach(p=>p.addEventListener('click', e=>{
+    e.stopPropagation();
+    openAccident(Number(p.dataset.id));
+  }));
+}
+document.getElementById('eraFilter').addEventListener('change', renderPins);
+
+function openAccident(id){
+  const a = accidents.find(x=>x.id===id);
+  const wordHtml = a.word ? `<span class="word">${a.word}</span>` : '';
+  document.getElementById('modalBody').innerHTML = `<div class="meta">${a.meta}</div><p>${a.desc.replace(a.word||'@@', wordHtml)}</p>`;
+  document.getElementById('modalbg').classList.add('open');
+}
+document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modalbg').classList.remove('open'));
+document.getElementById('modalbg').addEventListener('click', e=>{ if(e.target.id==='modalbg') e.currentTarget.classList.remove('open'); });
+
+/* --- zoom / pan --- */
+let z=1, tx=0, ty=0, dragging=false, sx=0, sy=0;
+const stage = document.getElementById('mapstage');
+function applyT(){ stage.style.transform = `translate(${tx}px,${ty}px) scale(${z})`; }
+document.getElementById('zoomIn').addEventListener('click', ()=>{ z=Math.min(2.2,z+0.2); applyT(); });
+document.getElementById('zoomOut').addEventListener('click', ()=>{ z=Math.max(0.7,z-0.2); applyT(); });
+document.getElementById('zoomReset').addEventListener('click', ()=>{ z=1; tx=0; ty=0; applyT(); });
+stage.addEventListener('pointerdown', e=>{ dragging=true; sx=e.clientX-tx; sy=e.clientY-ty; stage.setPointerCapture(e.pointerId); });
+stage.addEventListener('pointermove', e=>{ if(!dragging) return; tx=e.clientX-sx; ty=e.clientY-sy; applyT(); });
+stage.addEventListener('pointerup', ()=>dragging=false);
+stage.addEventListener('pointercancel', ()=>dragging=false);
+
+/* --- comment thread --- */
+function renderThread(){
+  const t = document.getElementById('thread');
+  t.innerHTML = state.thread.map(m=>{
+    if(m.type==='user') return `<div class="msg"><div class="who">町民${m.addr?(' / '+escapeHtml(m.addr)):''}</div>${escapeHtml(m.text)}</div>`;
+    if(m.type==='admin') return `<div class="msg admin"><div class="who">管理人</div>${escapeHtml(m.text)}</div>`;
+    if(m.type==='photo') return `<div class="msg admin"><div class="who">管理人</div>この事故ですよね？当時の新聞記事です。<div class="photo">〈スキャン画像〉三栖田町エレベーター事故 ― 整備業者の男性(30代)、事故に巻き込まれ行方不明<span class="corner">ID: kanrinin / PW: aitakute</span></div></div>`;
+  }).join('');
+}
+
+document.getElementById('commentForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const input = document.getElementById('commentInput');
+  const addr = document.getElementById('commentAddr').value;
+  const text = input.value.trim();
+  if(!text) return;
+  state.thread.push({type:'user', text, addr});
+  if(text.includes('エレベーター技師')){
+    state.thread.push({type:'photo'});
+  } else if(text.includes('エレベーターおとこ') || text.includes('デスゲーム') || text.includes('タイムリープ')){
+    state.thread.push({type:'admin', text:'情報提供ありがとうございます。同様の噂は他の事案でも確認しています。引き続き調査中です。'});
+  } else {
+    state.thread.push({type:'admin', text:'コメントありがとうございます。承認待ちです。'});
+  }
+  input.value='';
+  save(); renderThread();
+});
+
+/* --- login / memo / logout --- */
+document.getElementById('loginForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id = document.getElementById('lid').value.trim().toLowerCase();
+  const pw = document.getElementById('lpw').value.trim().toLowerCase();
+  if(id==='kanrinin' && pw==='aitakute'){
+    state.loggedIn = true; save();
+    renderHist();
+    go('memo');
+  } else {
+    document.getElementById('loginErr').textContent = 'IDまたはパスワードが違います。';
+  }
+});
+
+function renderHist(){
+  const el = document.getElementById('histList');
+  if(state.history.length===0){
+    el.innerHTML = '<div style="font-size:.8rem;color:var(--faint);font-family:monospace;">履歴はありません</div>';
+    return;
+  }
+  el.innerHTML = state.history.map((h,i)=>`<div class="hist-item"><span>${escapeHtml(h)}</span><button data-i="${i}">削除</button></div>`).join('');
+  el.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+    state.history.splice(Number(b.dataset.i),1); save(); renderHist();
+  }));
+}
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  if(state.history.length > 0){
+    go('badend');
+  } else {
+    state.finalUnlocked = true; save();
+    go('final');
+  }
+});
+
+renderPins();
+renderThread();
+renderHist();
+if(state.finalUnlocked){ go('final'); }
+</script>
+</body>
+</html>
